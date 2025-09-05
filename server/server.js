@@ -10,6 +10,7 @@ const PORT = process.env.PORT;
 const app = express();
 
 app.use(cors()); // Allow CORS for requests from frontend
+app.use(express.json({ limit: '50mb' }));
 
 // Create uploads folder if it doesn't exist
 const uploadDir = path.join(__dirname, 'uploads');
@@ -40,6 +41,23 @@ app.post('/upload', upload.single('file'), (req, res) => {
     return res.status(400).send('No file uploaded.');
   }
   res.send('File uploaded and stored successfully.');
+});
+
+// Accept encrypted JSON payload and store as a file
+app.post('/upload-json', (req, res) => {
+  try {
+    const { filename, ivHex, ciphertextHex, encryptedAesKeyHex, digestHex } = req.body || {};
+    if (!filename || !ivHex || !ciphertextHex || !encryptedAesKeyHex || !digestHex) {
+      return res.status(400).json({ error: 'Missing fields' });
+    }
+    const safeName = Date.now() + '-' + filename.replace(/[^a-zA-Z0-9._-]/g, '_') + '.json';
+    const outPath = path.join(uploadDir, safeName);
+    fs.writeFileSync(outPath, JSON.stringify({ filename, ivHex, ciphertextHex, encryptedAesKeyHex, digestHex }, null, 2));
+    return res.json({ ok: true, storedAs: safeName });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: 'Failed to store' });
+  }
 });
 
 app.listen(PORT, () => {
