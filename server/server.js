@@ -82,6 +82,8 @@ app.post('/file/:userId', express.raw({ limit: '500mb', type: '*/*' }), async (r
     const { userId } = req.params;
     const encryptedKey = req.headers['x-encrypted-key'];
     const encryptedMetadata = req.headers['x-encrypted-metadata'];
+    console.log('Server received X-Encrypted-Key:', encryptedKey);
+    console.log('Server received X-Encrypted-Metadata:', encryptedMetadata);
     if (!encryptedKey || !encryptedMetadata) {
       return res.status(400).json({ error: 'x-encrypted-key and x-encrypted-metadata headers are required' });
     }
@@ -108,6 +110,8 @@ app.get('/files/:userId', async (req, res) => {
     const files = [];
     for await (const [key, value] of db.iterator({ gte: 'filemeta:', lte: 'filemeta:~' })) {
       if (value.ownerId === userId) {
+        console.log('Server sending encryptedKey:', value.encryptedKey);
+        console.log('Server sending encryptedMetadata:', value.encryptedMetadata);
         files.push({ fileId: value.fileId, encryptedKey: value.encryptedKey, encryptedMetadata: value.encryptedMetadata });
       }
     }

@@ -43,6 +43,8 @@ function FileView({ user, privateKeyHex, setStatus }) {
       const privateKey = await importRsaPrivateKeyFromHexPkcs8(privateKeyHex);
       const decryptedFiles = await Promise.all(fileList.map(async (file) => {
         try {
+          console.log('Received encryptedKey:', file.encryptedKey);
+          console.log('Received encryptedMetadata:', file.encryptedMetadata);
           const rawAesKey = await rsaOaepDecrypt(privateKey, hexToArrayBuffer(file.encryptedKey));
           const aesKey = await crypto.subtle.importKey('raw', rawAesKey, { name: 'AES-GCM' }, false, ['decrypt']);
           
@@ -95,13 +97,18 @@ function FileView({ user, privateKeyHex, setStatus }) {
       const rawAesKey = await crypto.subtle.exportKey('raw', aesKey);
       const encryptedAesKey = await rsaOaepEncrypt(publicKey, rawAesKey);
 
+      const encryptedKeyHex = arrayBufferToHex(encryptedAesKey);
+      const encryptedMetadataHex = arrayBufferToHex(fullEncryptedMetadata);
+      console.log('Sending X-Encrypted-Key:', encryptedKeyHex);
+      console.log('Sending X-Encrypted-Metadata:', encryptedMetadataHex);
+
       setStatus('Uploading file...');
       const res = await fetch(`${API_URL}/file/${user.userId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/octet-stream',
-          'X-Encrypted-Key': arrayBufferToHex(encryptedAesKey),
-          'X-Encrypted-Metadata': arrayBufferToHex(fullEncryptedMetadata),
+          'X-Encrypted-Key': encryptedKeyHex,
+          'X-Encrypted-Metadata': encryptedMetadataHex,
         },
         body: payload,
       });
