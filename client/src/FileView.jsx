@@ -19,7 +19,7 @@ const getFileIcon = (filename = '') => {
   const extension = filename.split('.').pop().toLowerCase();
   if (['jpg', 'jpeg', 'png', 'gif'].includes(extension)) return '🖼️';
   if (['pdf'].includes(extension)) return '📄';
-  if (['doc', 'docx'].includes(extension)) return '📝';
+  if (['doc', 'docx', 'csv'].includes(extension)) return '📝';
   if (['zip', 'rar', '7z'].includes(extension)) return '📦';
   return '📁';
 };
@@ -157,15 +157,27 @@ function FileView({ user, privateKeyHex, setStatus }) {
     <div className="vault-container">
       <div className="upload-section">
         <h3>Upload New File</h3>
-        <form onSubmit={handleEncryptAndUpload}>
-          <input type="file" onChange={(e) => setFileToUpload(e.target.files[0])} required />
-          <button type="submit">Encrypt & Upload</button>
+        <form onSubmit={handleEncryptAndUpload} className="upload-form">
+          <input
+            id="fileUpload"
+            type="file"
+            className="file-input-hidden"
+            onChange={(e) => setFileToUpload(e.target.files[0])}
+            required
+          />
+          <label htmlFor="fileUpload" className="btn btn-secondary btn-file">Choose File</label>
+          <span className="selected-file">
+            {fileToUpload ? fileToUpload.name : 'No file chosen'}
+          </span>
+          <button type="submit" className="btn btn-primary" disabled={!fileToUpload}>Encrypt & Upload</button>
         </form>
       </div>
 
       <div className="file-list-section">
-        <h3>Your Files</h3>
-        <button onClick={fetchFiles}>Refresh Files</button>
+        <div className="files-header">
+          <h3>Your Files</h3>
+          <button type="button" className="btn btn-outline" onClick={fetchFiles}>Refresh Files</button>
+        </div>
         <div className="file-grid">
           {files.length === 0 ? (
             <p>No files found. Upload a file to get started.</p>

@@ -1,6 +1,5 @@
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
+/* Tailwind CSS v4 consolidated import */
+@import "tailwindcss";
 
 :root {
   --font-size: 16px;
