@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { generateRsaKeyPair } from '../utils/keyGenerator.js';
 import { toast } from 'react-toastify';
 import KeyModal from '../components/KeyModal.jsx';
-import './pages.css';
 
 const API_URL = 'http://localhost:5000';
 
@@ -14,6 +13,7 @@ export default function AuthPage({ user, setUser, privateKeyHex, setPrivateKeyHe
   const [name, setName] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [lastGeneratedKey, setLastGeneratedKey] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleRegister = async (e) => {
@@ -67,36 +67,213 @@ export default function AuthPage({ user, setUser, privateKeyHex, setPrivateKeyHe
   };
 
   return (
-    <div className="page-root">
-      <header className="app-header">
-        <h1>Secure File Vault</h1>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <h1 className="text-xl font-medium text-gray-900">SecureVault</h1>
       </header>
-      <main className="app-main">
-        {status && <p className="status">{status}</p>}
-        {mode === 'login' ? (
-          <div className="auth-container">
-            <form onSubmit={handleLogin} className="auth-form">
-              <h2>Login</h2>
-              <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
-              <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-              <textarea placeholder="Paste your Private Key (HEX)" value={privateKeyHex} onChange={(e) => setPrivateKeyHex(e.target.value)} required />
-              <button type="submit">Login</button>
-              <p className="toggle-view">Don't have an account? <button type="button" onClick={() => setMode('register')}>Register</button></p>
-            </form>
+
+      {/* Main Content */}
+      <main className="flex-1 flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
+          {/* Logo and Title */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-2xl mb-4">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">SecureVault</h2>
+            <p className="text-gray-600">Your secure cloud storage solution</p>
           </div>
-        ) : (
-          <div className="auth-container">
-            <form onSubmit={handleRegister} className="auth-form">
-              <h2>Register</h2>
-              <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
-              <input type="text" placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} required />
-              <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-              <button type="submit">Register</button>
-              <p className="toggle-view">Already have an account? <button type="button" onClick={() => setMode('login')}>Login</button></p>
-            </form>
+
+          {/* Status Message */}
+          {status && (
+            <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700">{status}</p>
+            </div>
+          )}
+
+          {/* Auth Card */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            {/* Tab Buttons */}
+            <div className="flex">
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                className={`flex-1 py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
+                  mode === 'login'
+                    ? 'border-primary text-primary bg-gray-50'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Login
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('register')}
+                className={`flex-1 py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
+                  mode === 'register'
+                    ? 'border-primary text-primary bg-gray-50'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Register
+              </button>
+            </div>
+
+            {/* Form Content */}
+            <div className="p-6">
+              {mode === 'login' ? (
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div>
+                    <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                      Username
+                    </label>
+                    <input
+                      id="username"
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      placeholder="Enter your username"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent pr-10"
+                        placeholder="Enter your password"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                      >
+                        {showPassword ? (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="privateKey" className="block text-sm font-medium text-gray-700 mb-1">
+                      Private Key
+                    </label>
+                    <textarea
+                      id="privateKey"
+                      value={privateKeyHex}
+                      onChange={(e) => setPrivateKeyHex(e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-vertical"
+                      placeholder="Paste your Private Key (HEX)"
+                      rows={3}
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-slate-900 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:ring-offset-2 transition-colors border border-slate-900 opacity-100 visible"
+                  >
+                    Sign In
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleRegister} className="space-y-4">
+                  <div>
+                    <label htmlFor="regUsername" className="block text-sm font-medium text-gray-700 mb-1">
+                      Username
+                    </label>
+                    <input
+                      id="regUsername"
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      placeholder="Enter your username"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
+                      Full Name
+                    </label>
+                    <input
+                      id="fullName"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      placeholder="Enter your full name"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="regPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="regPassword"
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent pr-10"
+                        placeholder="Create a password"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                      >
+                        {showPassword ? (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-slate-900 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:ring-offset-2 transition-colors border border-slate-900 opacity-100 visible"
+                  >
+                    Create Account
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
-        )}
+        </div>
       </main>
+
       <KeyModal open={modalOpen} keyHex={lastGeneratedKey} onClose={(confirmed) => {
         setModalOpen(false);
         if (confirmed) {
