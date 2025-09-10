@@ -154,42 +154,75 @@ function FileView({ user, privateKeyHex, setStatus }) {
   };
 
   return (
-    <div className="vault-container">
-      <div className="upload-section">
-        <h3>Upload New File</h3>
-        <form onSubmit={handleEncryptAndUpload} className="upload-form">
+    <div className="space-y-8">
+      {/* Upload Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload New File</h3>
+        <form onSubmit={handleEncryptAndUpload} className="flex flex-wrap items-center gap-4">
           <input
             id="fileUpload"
             type="file"
-            className="file-input-hidden"
+            className="hidden"
             onChange={(e) => setFileToUpload(e.target.files[0])}
             required
           />
-          <label htmlFor="fileUpload" className="btn btn-secondary btn-file">Choose File</label>
-          <span className="selected-file">
+          <label 
+            htmlFor="fileUpload" 
+            className="bg-gray-100 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 focus:ring-offset-2 transition-colors cursor-pointer"
+          >
+            Choose File
+          </label>
+          <span className="text-sm text-gray-600 min-w-40">
             {fileToUpload ? fileToUpload.name : 'No file chosen'}
           </span>
-          <button type="submit" className="btn btn-primary" disabled={!fileToUpload}>Encrypt & Upload</button>
+          <button 
+            type="submit" 
+            className="bg-slate-900 text-white px-4 py-2 rounded-lg font-medium hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+            disabled={!fileToUpload}
+          >
+            Encrypt & Upload
+          </button>
         </form>
       </div>
 
-      <div className="file-list-section">
-        <div className="files-header">
-          <h3>Your Files</h3>
-          <button type="button" className="btn btn-outline" onClick={fetchFiles}>Refresh Files</button>
+      {/* Files Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-lg font-semibold text-gray-900">Your Files</h3>
+          <button 
+            type="button" 
+            className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500/30 focus:ring-offset-2 transition-colors" 
+            onClick={fetchFiles}
+          >
+            Refresh Files
+          </button>
         </div>
-        <div className="file-grid">
-          {files.length === 0 ? (
-            <p>No files found. Upload a file to get started.</p>
-          ) : (
-            files.map((file) => (
-              <div key={file.fileId} className="file-item" onClick={() => handleDownloadAndDecrypt(file)}>
-                <div className="file-icon">{getFileIcon(file.filename)}</div>
-                <div className="file-name">{file.filename}</div>
+        
+        {files.length === 0 ? (
+          <div className="text-center py-12">
+            <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <p className="text-gray-500">No files found. Upload a file to get started.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+            {files.map((file) => (
+              <div 
+                key={file.fileId} 
+                className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group" 
+                onClick={() => handleDownloadAndDecrypt(file)}
+              >
+                <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
+                  {getFileIcon(file.filename)}
+                </div>
+                <div className="text-xs text-gray-700 text-center break-all line-clamp-2">
+                  {file.filename}
+                </div>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
