@@ -34,12 +34,20 @@ app.post('/register', async (req, res) => {
       }
     }
     const userId = uuidv4();
+    const storageId = uuidv4(); // ID for storage folder
     const salt = crypto.randomBytes(16).toString('hex');
     const passwordHash = hashPassword(password, salt);
-    const user = { userId, username, name, passwordHash, salt, publicKey };
+
+    const user = { userId, username, name, passwordHash, salt, publicKey, storageId };
     await db.put(`user:${userId}`, user);
+
+    // Create a dedicated storage directory for the user
+    const userStorageDir = path.join(storageDir, storageId);
+    fs.mkdirSync(userStorageDir, { recursive: true });
+
     res.status(201).json({ userId });
   } catch (error) {
+    console.error('Registration failed:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -63,6 +71,7 @@ app.post('/login', async (req, res) => {
     }
     res.json({ userId, publicKey: user.publicKey });
   } catch (error) {
+    console.error('Login failed:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -72,20 +81,23 @@ app.post('/file/:userId', express.raw({ limit: '500mb', type: '*/*' }), async (r
   try {
     const { userId } = req.params;
     const encryptedKey = req.headers['x-encrypted-key'];
-    if (!encryptedKey) return res.status(400).json({ error: 'x-encrypted-key header is required' });
+    const encryptedMetadata = req.headers['x-encrypted-metadata'];
+    if (!encryptedKey || !encryptedMetadata) {
+      return res.status(400).json({ error: 'x-encrypted-key and x-encrypted-metadata headers are required' });
+    }
 
-    await db.get(`user:${userId}`); // Verify user exists
-
+    const user = await db.get(`user:${userId}`);
     const fileId = uuidv4();
-    const filePath = path.join(storageDir, `${fileId}.enc`);
+    const filePath = path.join(storageDir, user.storageId, `${fileId}.enc`);
     await fs.promises.writeFile(filePath, req.body);
 
-    const metadata = { fileId, ownerId: userId, encryptedKey };
+    const metadata = { fileId, ownerId: userId, encryptedKey, encryptedMetadata };
     await db.put(`filemeta:${fileId}`, metadata);
 
     res.status(201).json({ fileId });
   } catch (error) {
     if (error.notFound) return res.status(404).json({ error: 'User not found' });
+    console.error('Upload failed:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -96,11 +108,12 @@ app.get('/files/:userId', async (req, res) => {
     const files = [];
     for await (const [key, value] of db.iterator({ gte: 'filemeta:', lte: 'filemeta:~' })) {
       if (value.ownerId === userId) {
-        files.push({ fileId: value.fileId, encryptedKey: value.encryptedKey });
+        files.push({ fileId: value.fileId, encryptedKey: value.encryptedKey, encryptedMetadata: value.encryptedMetadata });
       }
     }
     res.json(files);
   } catch (error) {
+    console.error('Failed to list files:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -108,7 +121,11 @@ app.get('/files/:userId', async (req, res) => {
 app.get('/file/:fileId', async (req, res) => {
   try {
     const { fileId } = req.params;
-    const filePath = path.join(storageDir, `${fileId}.enc`);
+    const metadata = await db.get(`filemeta:${fileId}`);
+    const owner = await db.get(`user:${metadata.ownerId}`);
+
+    const filePath = path.join(storageDir, owner.storageId, `${fileId}.enc`);
+
     if (fs.existsSync(filePath)) {
       res.setHeader('Content-Type', 'application/octet-stream');
       fs.createReadStream(filePath).pipe(res);
@@ -116,6 +133,8 @@ app.get('/file/:fileId', async (req, res) => {
       res.status(404).json({ error: 'File not found' });
     }
   } catch (error) {
+    if (error.notFound) return res.status(404).json({ error: 'File not found' });
+    console.error('Download failed:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

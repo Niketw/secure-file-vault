@@ -1,202 +1,123 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
-import {
-  generateAesGcmKey,
-  getRandomIv,
-  aesGcmEncrypt,
-  aesGcmDecrypt,
-  sha256,
-  arrayBufferToHex,
-  hexToArrayBuffer,
-  importRsaPublicKeyFromHexSpki,
-  importRsaPrivateKeyFromHexPkcs8,
-  rsaOaepEncrypt,
-  rsaOaepDecrypt,
-} from './utils/crypto.js';
 import { generateRsaKeyPair } from './utils/keyGenerator.js';
-import { savePublicKeyHex, getPublicKeyHex, clearPublicKey } from './utils/keyManagement.js';
+import FileView from './FileView'; // We will create this component next
+
+const API_URL = 'http://localhost:5000';
 
 function App() {
-  const [file, setFile] = useState(null);
-  const [view, setView] = useState('encrypt'); // 'encrypt' | 'decrypt' | 'keys'
-  const [publicKeyHex, setPublicKeyHex] = useState(getPublicKeyHex());
+  const [view, setView] = useState('login'); // login, register, vault
+  const [user, setUser] = useState(null); // { userId, publicKey }
   const [privateKeyHex, setPrivateKeyHex] = useState('');
+
+  // Form fields
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+
+  // App state
   const [status, setStatus] = useState('');
 
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
-  };
-
-  const handleEncryptAndUpload = async (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
-    setStatus('');
-    try {
-      if (!file) return alert('Please select a file first');
-      if (!publicKeyHex) return alert('Provide RSA public key (HEX SPKI)');
-
-      const publicKey = await importRsaPublicKeyFromHexSpki(publicKeyHex.trim());
-
-      const fileBuffer = await file.arrayBuffer();
-      const digest = await sha256(fileBuffer);
-      const digestBytes = new Uint8Array(digest);
-      const fileBytes = new Uint8Array(fileBuffer);
-
-      // Construct plaintext = digest || file
-      const plaintext = new Uint8Array(digestBytes.length + fileBytes.length);
-      plaintext.set(digestBytes, 0);
-      plaintext.set(fileBytes, digestBytes.length);
-
-      // AES encrypt
-      const aesKey = await generateAesGcmKey();
-      const iv = getRandomIv();
-      const ciphertext = await aesGcmEncrypt(aesKey, plaintext, iv);
-
-      // Export AES raw key to encrypt with RSA
-      const rawAesKey = await crypto.subtle.exportKey('raw', aesKey);
-      const encryptedAesKey = await rsaOaepEncrypt(publicKey, rawAesKey);
-
-      // Prepare payload
-      const payload = {
-        filename: file.name,
-        ivHex: arrayBufferToHex(iv.buffer),
-        ciphertextHex: arrayBufferToHex(ciphertext),
-        encryptedAesKeyHex: arrayBufferToHex(encryptedAesKey),
-        digestHex: arrayBufferToHex(digest),
-      };
-
-      const res = await fetch('http://localhost:5000/upload-json', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error('Upload failed');
-      setStatus('Encrypted file uploaded.');
-    } catch (err) {
-      console.error(err);
-      setStatus('Error: ' + err.message);
-    }
-  };
-
-  const handleGenerateKeys = async () => {
-    setStatus('');
+    setStatus('Generating RSA key pair...');
     try {
       const { publicKeySpkiHex, privateKeyPkcs8Hex } = await generateRsaKeyPair();
-      setPublicKeyHex(publicKeySpkiHex);
-      savePublicKeyHex(publicKeySpkiHex);
-      setPrivateKeyHex(privateKeyPkcs8Hex);
+      setStatus('Registering with the server...');
+
+      const res = await fetch(`${API_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, name, password, publicKey: publicKeySpkiHex }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error);
+      }
+
+      alert(`Registration successful!\n\nPLEASE SAVE YOUR PRIVATE KEY. YOU WILL NOT BE ABLE TO RECOVER IT.\n\n${privateKeyPkcs8Hex}`);
+      setView('login');
+      setStatus('Registration successful. Please log in.');
     } catch (err) {
-      setStatus(`Error generating keys: ${err}`);
+      setStatus(`Error: ${err.message}`);
     }
   };
 
-  const handleClearPublicKey = () => {
-    clearPublicKey();
-    setPublicKeyHex('');
-  };
-
-  const handleDecrypt = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    setStatus('');
+    setStatus('Logging in...');
     try {
-      if (!privateKeyHex) return alert('Paste RSA private key (HEX PKCS8)');
+      if (!privateKeyHex) {
+        return alert('Private key is required to log in and decrypt data.');
+      }
+      const res = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
 
-      const fileInput = e.target.elements.encfile;
-      const encFile = fileInput.files[0];
-      if (!encFile) return alert('Select encrypted JSON file');
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error);
+      }
 
-      const text = await encFile.text();
-      const obj = JSON.parse(text);
-
-      const privateKey = await importRsaPrivateKeyFromHexPkcs8(privateKeyHex.trim());
-
-      const iv = new Uint8Array(hexToArrayBuffer(obj.ivHex));
-      const ciphertext = hexToArrayBuffer(obj.ciphertextHex);
-      const encryptedAesKey = hexToArrayBuffer(obj.encryptedAesKeyHex);
-      // digest from server is not required because we verify against decrypted content
-
-      const rawAesKey = await rsaOaepDecrypt(privateKey, encryptedAesKey);
-      const aesKey = await crypto.subtle.importKey('raw', rawAesKey, { name: 'AES-GCM' }, false, ['decrypt']);
-
-      const decrypted = await aesGcmDecrypt(aesKey, ciphertext, iv);
-      const decryptedBytes = new Uint8Array(decrypted);
-
-      const digestBytes = decryptedBytes.slice(0, 32);
-      const fileBytes = decryptedBytes.slice(32);
-
-      const digestCheck = new Uint8Array(await sha256(fileBytes.buffer));
-      const ok = arrayBufferToHex(digestBytes) === arrayBufferToHex(digestCheck);
-      if (!ok) throw new Error('Hash verification failed');
-
-      // Offer download of decrypted file
-      const blob = new Blob([fileBytes], { type: 'application/octet-stream' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = obj.filename || 'decrypted.bin';
-      a.click();
-      setStatus('Decryption successful. File downloaded.');
+      const userData = await res.json();
+      setUser(userData);
+      setView('vault');
+      setStatus('');
     } catch (err) {
-      console.error(err);
-      setStatus('Error: ' + err.message);
+      setStatus(`Error: ${err.message}`);
     }
   };
+
+  const handleLogout = () => {
+    setUser(null);
+    setPrivateKeyHex('');
+    setUsername('');
+    setPassword('');
+    setView('login');
+    setStatus('You have been logged out.');
+  };
+
+  const renderLogin = () => (
+    <div className="auth-container">
+      <form onSubmit={handleLogin} className="auth-form">
+        <h2>Login</h2>
+        <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <textarea placeholder="Paste your Private Key (HEX)" value={privateKeyHex} onChange={(e) => setPrivateKeyHex(e.target.value)} required />
+        <button type="submit">Login</button>
+        <p className="toggle-view">Don't have an account? <button type="button" onClick={() => setView('register')}>Register</button></p>
+      </form>
+    </div>
+  );
+
+  const renderRegister = () => (
+    <div className="auth-container">
+      <form onSubmit={handleRegister} className="auth-form">
+        <h2>Register</h2>
+        <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+        <input type="text" placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} required />
+        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <button type="submit">Register</button>
+        <p className="toggle-view">Already have an account? <button type="button" onClick={() => setView('login')}>Login</button></p>
+      </form>
+    </div>
+  );
 
   return (
-    <div>
-      <div>
-        <button onClick={() => setView('encrypt')}>Encrypt & Upload</button>
-        <button onClick={() => setView('decrypt')}>Decrypt</button>
-        <button onClick={() => setView('keys')}>Keys</button>
-      </div>
-
-      {view === 'keys' && (
-        <div>
-          <div>
-            <button onClick={handleGenerateKeys}>Generate RSA Key Pair</button>
-          </div>
-          <div>
-            <div>Public Key (HEX SPKI):</div>
-            <textarea rows="6" cols="80" value={publicKeyHex} onChange={(e) => setPublicKeyHex(e.target.value)} />
-            <div>
-              <button onClick={() => savePublicKeyHex(publicKeyHex)}>Save Public Key</button>
-              <button onClick={handleClearPublicKey}>Clear Cached Public Key</button>
-            </div>
-          </div>
-          <div>
-            <div>Private Key (HEX PKCS8):</div>
-            <textarea rows="6" cols="80" value={privateKeyHex} onChange={(e) => setPrivateKeyHex(e.target.value)} />
-            <div>(Not stored)</div>
-          </div>
-        </div>
-      )}
-
-      {view === 'encrypt' && (
-        <form onSubmit={handleEncryptAndUpload}>
-          <div>
-            <div>RSA Public Key (HEX SPKI):</div>
-            <textarea rows="4" cols="80" value={publicKeyHex} onChange={(e) => setPublicKeyHex(e.target.value)} />
-          </div>
-          <div>
-            <input type="file" name="file" onChange={handleFileChange} />
-          </div>
-          <button type="submit">Encrypt & Upload</button>
-        </form>
-      )}
-
-      {view === 'decrypt' && (
-        <form onSubmit={handleDecrypt}>
-          <div>
-            <div>RSA Private Key (HEX PKCS8):</div>
-            <textarea rows="4" cols="80" value={privateKeyHex} onChange={(e) => setPrivateKeyHex(e.target.value)} />
-          </div>
-          <div>
-            <div>Upload encrypted JSON (as downloaded from server):</div>
-            <input type="file" name="encfile" accept="application/json" />
-          </div>
-          <button type="submit">Decrypt</button>
-        </form>
-      )}
-
-      {status && <div>{status}</div>}
+    <div className="App">
+      <header className="app-header">
+        <h1>Secure File Vault</h1>
+        {user && <button onClick={handleLogout} className="logout-button">Logout</button>}
+      </header>
+      <main className="app-main">
+        {status && <p className="status">{status}</p>}
+        {view === 'login' && renderLogin()}
+        {view === 'register' && renderRegister()}
+        {view === 'vault' && user && <FileView user={user} privateKeyHex={privateKeyHex} setStatus={setStatus} />}
+      </main>
     </div>
   );
 }
