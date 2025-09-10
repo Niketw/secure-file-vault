@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 import { generateRsaKeyPair } from './utils/keyGenerator.js';
-import FileView from './FileView'; // We will create this component next
+import FileView from './FileView';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const API_URL = 'http://localhost:5000';
 
@@ -36,7 +38,77 @@ function App() {
         throw new Error(err.error);
       }
 
-      alert(`Registration successful!\n\nPLEASE SAVE YOUR PRIVATE KEY. YOU WILL NOT BE ABLE TO RECOVER IT.\n\n${privateKeyPkcs8Hex}`);
+      const CustomToast = () => {
+        const [showFullKey, setShowFullKey] = useState(false);
+        const truncatedKey = `${privateKeyPkcs8Hex.slice(0, 20)}...${privateKeyPkcs8Hex.slice(-20)}`;
+        
+        return (
+          <div>
+            <p style={{ marginBottom: '10px', fontWeight: 'bold', color: '#4CAF50' }}>
+              ✓ Registration successful!
+            </p>
+            <p style={{ marginBottom: '15px', color: '#ff0000', fontWeight: 'bold' }}>
+              PLEASE SAVE YOUR PRIVATE KEY
+            </p>
+            <div style={{ 
+              background: '#f8f9fa',
+              border: '1px solid #dee2e6',
+              borderRadius: '4px',
+              padding: '15px',
+            }}>
+              <div style={{ 
+                fontFamily: 'monospace',
+                marginBottom: '10px',
+                color: '#495057'
+              }}>
+                {showFullKey ? privateKeyPkcs8Hex : truncatedKey}
+              </div>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setShowFullKey(!showFullKey)}
+                  style={{
+                    padding: '6px 12px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    background: '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {showFullKey ? 'Show Less' : 'Show Full Key'}
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(privateKeyPkcs8Hex);
+                    toast.info('Private key copied to clipboard!', {
+                      position: "bottom-right",
+                      autoClose: 2000
+                    });
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    border: '1px solid #007bff',
+                    borderRadius: '4px',
+                    background: '#007bff',
+                    color: '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Copy to Clipboard
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      toast(<CustomToast />, {
+        position: "top-center",
+        autoClose: false,
+        closeOnClick: false,
+        draggable: true,
+        closeButton: true,
+        style: { maxWidth: '500px', width: '100%' }
+      });
       setView('login');
       setStatus('Registration successful. Please log in.');
     } catch (err) {
@@ -108,6 +180,7 @@ function App() {
 
   return (
     <div className="App">
+      <ToastContainer />
       <header className="app-header">
         <h1>Secure File Vault</h1>
         {user && <button onClick={handleLogout} className="logout-button">Logout</button>}
