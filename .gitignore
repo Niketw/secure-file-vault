@@ -45,3 +45,6 @@ Desktop.ini
 coverage/
 client/coverage/
 server/coverage/
+
+# project specific
+secure-vault-db/
