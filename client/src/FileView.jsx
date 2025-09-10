@@ -14,19 +14,68 @@ import {
 
 const API_URL = 'http://localhost:5000';
 
-// Helper to handle file type icons (basic version)
+// Helper to handle file type icons (richer and accessible)
+// Returns a small JSX span with an emoji (works well cross-platform) and an accessible label.
 const getFileIcon = (filename = '') => {
-  const extension = filename.split('.').pop().toLowerCase();
-  if (['jpg', 'jpeg', 'png', 'gif'].includes(extension)) return '🖼️';
-  if (['pdf'].includes(extension)) return '📄';
-  if (['doc', 'docx', 'csv'].includes(extension)) return '📝';
-  if (['zip', 'rar', '7z'].includes(extension)) return '📦';
-  return '📁';
+  const name = String(filename || '');
+  const parts = name.split('.');
+  const extension = parts.length > 1 ? parts.pop().toLowerCase() : '';
+
+  const map = {
+    // Documents & Text
+    docx: { icon: '📝', label: 'Word document' },
+    doc: { icon: '📝', label: 'Word document' },
+    pdf: { icon: '📄', label: 'PDF document' },
+    txt: { icon: '📄', label: 'Text file' },
+    rtf: { icon: '📄', label: 'Rich Text Format' },
+    // Images
+    jpg: { icon: '🖼️', label: 'Image' },
+    jpeg: { icon: '🖼️', label: 'Image' },
+    png: { icon: '🖼️', label: 'Image' },
+    gif: { icon: '🖼️', label: 'Image' },
+    bmp: { icon: '🖼️', label: 'Bitmap image' },
+    // Audio
+    mp3: { icon: '🎵', label: 'Audio file' },
+    wav: { icon: '🔊', label: 'Audio file' },
+    m4a: { icon: '🔊', label: 'Audio file' },
+    // Video
+    mp4: { icon: '🎞️', label: 'Video file' },
+    mov: { icon: '🎞️', label: 'Video file' },
+    avi: { icon: '🎞️', label: 'Video file' },
+    // Spreadsheets & CSV
+    xlsx: { icon: '📊', label: 'Spreadsheet' },
+    xls: { icon: '�', label: 'Spreadsheet' },
+    csv: { icon: '📈', label: 'CSV spreadsheet' },
+    // Presentations
+    pptx: { icon: '📽️', label: 'Presentation' },
+    ppt: { icon: '📽️', label: 'Presentation' },
+    // Archives
+    zip: { icon: '📦', label: 'Archive' },
+    rar: { icon: '📦', label: 'Archive' },
+    '7z': { icon: '📦', label: 'Archive' },
+    // Executables & System
+    exe: { icon: '⚙️', label: 'Executable' },
+    msi: { icon: '⚙️', label: 'Windows installer' },
+    dll: { icon: '🧩', label: 'Library (DLL)' },
+    sys: { icon: '🛠️', label: 'System file' },
+    ini: { icon: '⚙️', label: 'Config file' },
+  };
+
+  const entry = map[extension];
+  const display = entry || { icon: '�', label: 'File' };
+
+  // Return a small span so callers can style it (text-3xl still works)
+  return (
+    <span role="img" aria-label={display.label} title={display.label}>
+      {display.icon}
+    </span>
+  );
 };
 
 function FileView({ user, privateKeyHex, setStatus }) {
   const [files, setFiles] = useState([]);
   const [fileToUpload, setFileToUpload] = useState(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   useEffect(() => {
     fetchFiles();
@@ -153,35 +202,110 @@ function FileView({ user, privateKeyHex, setStatus }) {
     }
   };
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const droppedFiles = e.dataTransfer.files;
+    if (droppedFiles.length > 0) {
+      setFileToUpload(droppedFiles[0]);
+    }
+  };
+
+  const handleFileSelect = (e) => {
+    if (e.target.files.length > 0) {
+      setFileToUpload(e.target.files[0]);
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Upload Section */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload New File</h3>
-        <form onSubmit={handleEncryptAndUpload} className="flex flex-wrap items-center gap-4">
-          <input
-            id="fileUpload"
-            type="file"
-            className="hidden"
-            onChange={(e) => setFileToUpload(e.target.files[0])}
-            required
-          />
-          <label 
-            htmlFor="fileUpload" 
-            className="bg-gray-100 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 focus:ring-offset-2 transition-colors cursor-pointer"
-          >
-            Choose File
-          </label>
-          <span className="text-sm text-gray-600 min-w-40">
-            {fileToUpload ? fileToUpload.name : 'No file chosen'}
-          </span>
-          <button 
-            type="submit" 
-            className="bg-slate-900 text-white px-4 py-2 rounded-lg font-medium hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
-            disabled={!fileToUpload}
-          >
-            Encrypt & Upload
-          </button>
+        <form onSubmit={handleEncryptAndUpload} className="w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Left Side - Drag & Drop Area */}
+            <div 
+              className={`border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-colors min-h-[140px] ${
+                isDragOver 
+                  ? 'border-slate-900 bg-slate-50' 
+                  : fileToUpload 
+                    ? 'border-green-400 bg-green-50' 
+                    : 'border-gray-300 hover:border-gray-400'
+              }`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => document.getElementById('fileUpload').click()}
+            >
+              <input
+                id="fileUpload"
+                type="file"
+                className="hidden"
+                onChange={handleFileSelect}
+                required
+              />
+              
+              {fileToUpload ? (
+                <>
+                  <svg className="w-8 h-8 text-green-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-sm font-medium text-green-700">File Selected</p>
+                  <p className="text-xs text-green-600 mt-1 truncate max-w-full">{fileToUpload.name}</p>
+                </>
+              ) : (
+                <>
+                  <svg className="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  <p className="text-sm font-medium text-gray-700">Choose a file or drag it here</p>
+                  <p className="text-xs text-gray-500 mt-1">Click to browse or drag and drop</p>
+                </>
+              )}
+            </div>
+
+            {/* Right Side - File Info & Upload Button */}
+            <div className="flex flex-col justify-between space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Selected File</label>
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg min-h-[60px] flex items-center">
+                  <div className="w-full">
+                    {fileToUpload ? (
+                      <>
+                        <p className="text-sm font-medium text-gray-900 truncate">{fileToUpload.name}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {(fileToUpload.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-500">No file selected</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end">
+                <button 
+                  type="submit" 
+                  className="bg-slate-900 text-white px-6 py-2 rounded-lg font-medium hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                  disabled={!fileToUpload}
+                >
+                  Encrypt & Upload
+                </button>
+              </div>
+            </div>
+          </div>
         </form>
       </div>
 
@@ -189,12 +313,30 @@ function FileView({ user, privateKeyHex, setStatus }) {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-lg font-semibold text-gray-900">Your Files</h3>
-          <button 
-            type="button" 
-            className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500/30 focus:ring-offset-2 transition-colors" 
+          <button
+            type="button"
             onClick={fetchFiles}
+            aria-label="Refresh files"
+            title="Refresh files"
+            className="inline-flex items-center justify-center w-9 h-9 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-gray-500/30 focus:ring-offset-2 transition-colors"
           >
-            Refresh Files
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-5 h-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0114.36-3.36L23 10" />
+              <path d="M20.49 15a9 9 0 01-14.36 3.36L1 14" />
+            </svg>
           </button>
         </div>
         

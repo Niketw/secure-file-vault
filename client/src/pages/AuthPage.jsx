@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { generateRsaKeyPair } from '../utils/keyGenerator.js';
 import { toast } from 'react-toastify';
 import KeyModal from '../components/KeyModal.jsx';
+import bgAuth from '../assets/background_auth.png';
 
 const API_URL = 'http://localhost:5000';
 
@@ -67,7 +68,7 @@ export default function AuthPage({ user, setUser, privateKeyHex, setPrivateKeyHe
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="relative min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex justify-between items-center">
@@ -81,7 +82,7 @@ export default function AuthPage({ user, setUser, privateKeyHex, setPrivateKeyHe
           </div>
         </div>
       </header>
-
+      
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center px-4">
         <div className="w-full max-w-md">
