@@ -25,6 +25,9 @@ const getFileIcon = (filename = '') => {
     // Documents & Text
     docx: { icon: '📝', label: 'Word document' },
     doc: { icon: '📝', label: 'Word document' },
+    epub: { icon: '📖', label: 'E-Book' },
+    mobi: { icon: '📖', label: 'E-Book' },
+    rtf: { icon: '📖', label: 'E-Book' },
     pdf: { icon: '📄', label: 'PDF document' },
     txt: { icon: '📄', label: 'Text file' },
     rtf: { icon: '📄', label: 'Rich Text Format' },
@@ -171,6 +174,19 @@ function FileView({ user, privateKeyHex, setStatus }) {
   const handleEncryptAndUpload = async (e) => {
     e.preventDefault();
     if (!fileToUpload) return alert('Please select a file');
+
+    // File size validation
+    const MAX_FILE_SIZE = 80 * 1024 * 1024; // 80MB - slightly under server's 100MB limit for safety
+    if (fileToUpload.size > MAX_FILE_SIZE) {
+      toast.error(`File too large. Maximum size allowed is ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB. Your file is ${(fileToUpload.size / 1024 / 1024).toFixed(1)}MB.`);
+      return;
+    }
+
+    // Memory estimation warning
+    if (fileToUpload.size > 20 * 1024 * 1024) { // 20MB+
+      toast.warning('Large file detected. This may take a while and use significant memory.', { autoClose: 5000 });
+    }
+
   const uploadToastId = `upload-${fileToUpload?.name || Date.now()}`;
   toast.info('Encrypting file and metadata...', { autoClose: 4000, toastId: uploadToastId });
     try {
@@ -215,8 +231,22 @@ function FileView({ user, privateKeyHex, setStatus }) {
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Upload failed');
+        let errorMessage = 'Upload failed';
+        
+        // Handle different error types
+        if (res.status === 413) {
+          errorMessage = 'File too large for server. Try a smaller file or contact administrator.';
+        } else {
+          try {
+            const errorData = await res.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (jsonError) {
+            // Server returned HTML error page instead of JSON
+            errorMessage = `Server error (${res.status}): ${res.statusText || 'Unknown error'}`;
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
   toast.dismiss(uploadToastId);
   toast.success('File uploaded successfully.', { autoClose: 3000 });
@@ -257,6 +287,82 @@ function FileView({ user, privateKeyHex, setStatus }) {
     }
   };
 
+  const handleDeleteFile = async (file) => {
+    // Validation checks
+    if (!file) {
+      toast.error('Invalid file data');
+      return;
+    }
+
+    if (!file.fileId) {
+      toast.error('File ID is missing');
+      return;
+    }
+
+    if (file.filename === '[Decryption Error]') {
+      alert('Cannot delete file with decryption error.');
+      return;
+    }
+
+    if (!user || !user.userId) {
+      toast.error('User authentication required');
+      return;
+    }
+    
+    const displayName = file.filename || `File ${file.fileId}`;
+    if (!confirm(`Are you sure you want to delete "${displayName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    const deleteToastId = `delete-${file.fileId}`;
+    toast.info(`Deleting ${displayName}...`, { autoClose: 4000, toastId: deleteToastId });
+    
+    try {
+      console.log('Deleting file:', { fileId: file.fileId, userId: user.userId, filename: displayName });
+      
+      const res = await fetch(`${API_URL}/file/${user.userId}/${file.fileId}`, {
+        method: 'DELETE',
+      });
+      
+      console.log('Delete response status:', res.status, res.statusText);
+      
+      if (!res.ok) {
+        let errorMessage = 'Delete failed';
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.error || errorMessage;
+          console.error('Delete error response:', errorData);
+        } catch (jsonError) {
+          // If response is not JSON, use status text or generic message
+          errorMessage = res.statusText || `Delete failed with status ${res.status}`;
+          console.error('Non-JSON error response:', res.status, res.statusText);
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Verify the response is valid JSON (optional, but safe)
+      let successData;
+      try {
+        successData = await res.json();
+        console.log('Delete success response:', successData);
+      } catch (jsonError) {
+        // Even if response isn't JSON, deletion might have succeeded
+        console.warn('Delete response was not JSON, but request may have succeeded');
+      }
+
+      toast.dismiss(deleteToastId);
+      toast.success(`${displayName} deleted successfully.`, { autoClose: 3500 });
+      
+      // Refresh the file list to confirm deletion
+      console.log('Refreshing file list after deletion');
+      await fetchFiles();
+    } catch (err) {
+      toast.dismiss(deleteToastId);
+      toast.error(`Error deleting file: ${err.message}`);
+      console.error('Delete file error:', err);
+    }
+  };
+
   const handleDragOver = (e) => {
     e.preventDefault();
     setIsDragOver(true);
@@ -272,13 +378,31 @@ function FileView({ user, privateKeyHex, setStatus }) {
     setIsDragOver(false);
     const droppedFiles = e.dataTransfer.files;
     if (droppedFiles.length > 0) {
-      setFileToUpload(droppedFiles[0]);
+      const selectedFile = droppedFiles[0];
+      const MAX_FILE_SIZE = 80 * 1024 * 1024; // 80MB
+      
+      if (selectedFile.size > MAX_FILE_SIZE) {
+        toast.error(`File too large. Maximum size allowed is ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB. Dropped file is ${(selectedFile.size / 1024 / 1024).toFixed(1)}MB.`);
+        return;
+      }
+      
+      setFileToUpload(selectedFile);
     }
   };
 
   const handleFileSelect = (e) => {
     if (e.target.files.length > 0) {
-      setFileToUpload(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      const MAX_FILE_SIZE = 80 * 1024 * 1024; // 80MB
+      
+      if (selectedFile.size > MAX_FILE_SIZE) {
+        toast.error(`File too large. Maximum size allowed is ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB. Selected file is ${(selectedFile.size / 1024 / 1024).toFixed(1)}MB.`);
+        // Clear the input
+        e.target.value = '';
+        return;
+      }
+      
+      setFileToUpload(selectedFile);
     }
   };
 
@@ -338,9 +462,14 @@ function FileView({ user, privateKeyHex, setStatus }) {
                     {fileToUpload ? (
                       <>
                         <p className="text-sm font-medium text-gray-900 truncate">{fileToUpload.name}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {(fileToUpload.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
+                        <div className="flex items-center justify-between mt-1">
+                          <p className="text-xs text-gray-500">
+                            {(fileToUpload.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                          {fileToUpload.size > 20 * 1024 * 1024 && (
+                            <span className="text-xs text-amber-600 font-medium">Large file</span>
+                          )}
+                        </div>
                       </>
                     ) : (
                       <p className="text-sm text-gray-500">No file selected</p>
@@ -458,9 +587,24 @@ function FileView({ user, privateKeyHex, setStatus }) {
             {files.map((file) => (
               <div 
                 key={file.fileId} 
-                className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group" 
+                className="relative flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group" 
                 onClick={() => handleDownloadAndDecrypt(file)}
               >
+                {/* Delete button - appears on hover */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteFile(file);
+                  }}
+                  className="absolute top-1 right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center z-10"
+                  aria-label={`Delete ${file.filename}`}
+                  title={`Delete ${file.filename}`}
+                >
+                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                
                 <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
                   {getFileIcon(file.filename)}
                 </div>
@@ -506,9 +650,22 @@ function FileView({ user, privateKeyHex, setStatus }) {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          handleDeleteFile(file);
+                        }}
+                        className="text-red-600 hover:text-red-800 mx-1"
+                        aria-label={`Delete ${file.filename}`}
+                        title={`Delete ${file.filename}`}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
                           handleDownloadAndDecrypt(file);
                         }}
-                        className="text-slate-700 hover:text-slate-900 mx-2"
+                        className="text-slate-700 hover:text-slate-900 mx-1"
                         aria-label={`Download ${file.filename}`}
                         title={`Download ${file.filename}`}
                       >

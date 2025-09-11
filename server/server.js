@@ -78,7 +78,7 @@ app.post('/login', async (req, res) => {
 });
 
 // --- File Endpoints ---
-app.post('/file/:userId', express.raw({ limit: '500mb', type: '*/*' }), async (req, res) => {
+app.post('/file/:userId', express.raw({ limit: '100mb', type: '*/*' }), async (req, res) => {
   try {
     const { userId } = req.params;
     const encryptedKey = req.headers['x-encrypted-key'];
@@ -147,22 +147,48 @@ app.get('/file/:fileId', async (req, res) => {
 app.delete('/file/:userId/:fileId', async (req, res) => {
   try {
     const { userId, fileId } = req.params;
-    const metadata = await db.get(`filemeta:${fileId}`);
+    
+    // Validate parameters
+    if (!userId || !fileId) {
+      return res.status(400).json({ error: 'User ID and File ID are required' });
+    }
 
+    console.log(`Delete request for fileId: ${fileId} by userId: ${userId}`);
+    
+    // Get file metadata
+    const metadata = await db.get(`filemeta:${fileId}`);
+    console.log('Found file metadata:', { fileId: metadata.fileId, ownerId: metadata.ownerId });
+
+    // Check ownership
     if (metadata.ownerId !== userId) {
       return res.status(403).json({ error: 'Forbidden: You do not have permission to delete this file' });
     }
 
+    // Get user info for storage path
     const owner = await db.get(`user:${metadata.ownerId}`);
     const filePath = path.join(storageDir, owner.storageId, `${fileId}.enc`);
+    
+    console.log(`Attempting to delete file at path: ${filePath}`);
 
-    await fs.promises.unlink(filePath);
+    // Delete the physical file
+    try {
+      await fs.promises.unlink(filePath);
+      console.log('Physical file deleted successfully');
+    } catch (fileError) {
+      console.warn('Physical file deletion failed (may not exist):', fileError.message);
+      // Continue with metadata deletion even if physical file doesn't exist
+    }
+
+    // Delete the metadata
     await db.del(`filemeta:${fileId}`);
+    console.log('File metadata deleted successfully');
 
     res.json({ message: 'File deleted successfully' });
   } catch (error) {
-    if (error.notFound) return res.status(404).json({ error: 'File not found' });
     console.error('Delete failed:', error);
+    if (error.notFound) {
+      return res.status(404).json({ error: 'File not found' });
+    }
     res.status(500).json({ error: 'Internal server error' });
   }
 });
