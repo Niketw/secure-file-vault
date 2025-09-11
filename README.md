@@ -1,7 +1,7 @@
 # Secure File Vault
 # your secure cloud storage solution
 
-![License](https://img.shields.io/github/license/RickyTheDude/secure-file-vault)
+![License](https://img.shields.io/github/license/Niketw/secure-file-vault)
 
 A full-stack application for secure, end-to-end encrypted file storage with client-side encryption and key management.
 
