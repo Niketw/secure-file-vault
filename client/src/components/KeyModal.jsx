@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { toast } from 'react-toastify';
 
 export default function KeyModal({ open, keyHex, onClose }) {
   const [checked, setChecked] = useState(false);
@@ -17,9 +18,10 @@ export default function KeyModal({ open, keyHex, onClose }) {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(keyHex);
-      // small visual confirmation can be handled by caller
+  toast.success('Copied to clipboard', { autoClose: 2500 });
     } catch (e) {
       console.error('Copy failed', e);
+  toast.error('Failed to copy to clipboard', { autoClose: 3000 });
     }
   };
 

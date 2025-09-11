@@ -134,7 +134,7 @@ function FileView({ user, privateKeyHex, setStatus }) {
 
   const fetchFiles = async () => {
     if (!user) return;
-    toast.info('Fetching files...');
+  toast.info('Fetching files...', { autoClose: 8000, toastId: `fetch-${user?.userId || 'anon'}` });
     try {
       const res = await fetch(`${API_URL}/files/${user.userId}`);
       if (!res.ok) throw new Error('Failed to fetch files');
@@ -161,8 +161,8 @@ function FileView({ user, privateKeyHex, setStatus }) {
         }
       }));
 
-      setFiles(decryptedFiles);
-      toast.dismiss(); // Dismiss the "Fetching files..." toast
+  setFiles(decryptedFiles);
+  toast.dismiss(`fetch-${user?.userId || 'anon'}`); // Dismiss the "Fetching files..." toast
     } catch (err) {
       toast.error(`Error: ${err.message}`);
     }
@@ -171,7 +171,8 @@ function FileView({ user, privateKeyHex, setStatus }) {
   const handleEncryptAndUpload = async (e) => {
     e.preventDefault();
     if (!fileToUpload) return alert('Please select a file');
-    toast.info('Encrypting file and metadata...');
+  const uploadToastId = `upload-${fileToUpload?.name || Date.now()}`;
+  toast.info('Encrypting file and metadata...', { autoClose: 4000, toastId: uploadToastId });
     try {
       const publicKey = await importRsaPublicKeyFromHexSpki(user.publicKey);
       const fileBuffer = await fileToUpload.arrayBuffer();
@@ -202,7 +203,7 @@ function FileView({ user, privateKeyHex, setStatus }) {
       console.log('Sending X-Encrypted-Key:', encryptedKeyHex);
       console.log('Sending X-Encrypted-Metadata:', encryptedMetadataHex);
 
-      toast.info('Uploading file...');
+  toast.info('Uploading file...', { autoClose: 5000, toastId: uploadToastId });
       const res = await fetch(`${API_URL}/file/${user.userId}`, {
         method: 'POST',
         headers: {
@@ -217,7 +218,8 @@ function FileView({ user, privateKeyHex, setStatus }) {
         const err = await res.json();
         throw new Error(err.error || 'Upload failed');
       }
-      toast.success('File uploaded successfully.');
+  toast.dismiss(uploadToastId);
+  toast.success('File uploaded successfully.', { autoClose: 3000 });
       fetchFiles();
     } catch (err) {
       toast.error(`Error: ${err.message}`);
@@ -226,7 +228,8 @@ function FileView({ user, privateKeyHex, setStatus }) {
 
   const handleDownloadAndDecrypt = async (file) => {
     if (file.filename === '[Decryption Error]') return alert('Cannot download file with decryption error.');
-    toast.info(`Downloading ${file.filename}...`);
+  const downloadToastId = `download-${file.fileId}`;
+  toast.info(`Downloading ${file.filename}...`, { autoClose: 4000, toastId: downloadToastId });
     try {
       const res = await fetch(`${API_URL}/file/${file.fileId}`);
       if (!res.ok) throw new Error('Download failed');
@@ -239,7 +242,7 @@ function FileView({ user, privateKeyHex, setStatus }) {
       const fileIv = encFileBuffer.slice(0, 12);
       const ciphertext = encFileBuffer.slice(12);
 
-      toast.info(`Decrypting ${file.filename}...`);
+  toast.info(`Decrypting ${file.filename}...`, { autoClose: 4000, toastId: downloadToastId });
       const decryptedFileBytes = await aesGcmDecrypt(aesKey, ciphertext, fileIv);
 
       const blob = new Blob([decryptedFileBytes], { type: file.type || 'application/octet-stream' });
@@ -247,7 +250,8 @@ function FileView({ user, privateKeyHex, setStatus }) {
       a.href = URL.createObjectURL(blob);
       a.download = file.filename;
       a.click();
-      toast.success(`${file.filename} downloaded and decrypted.`);
+  toast.dismiss(downloadToastId);
+  toast.success(`${file.filename} downloaded and decrypted.`, { autoClose: 3500 });
     } catch (err) {
       toast.error(`Error: ${err.message}`);
     }
