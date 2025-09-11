@@ -10,14 +10,42 @@ fi
 # Default actions
 ACTION=${1:-up}
 
+print_links() {
+  echo ""
+  echo "Open these in your browser:" 
+  echo "  - Frontend: http://localhost:3000"
+  echo "  - API health: http://localhost:5001/health"
+  echo ""
+}
+
+wait_and_open_urls() {
+  # Wait for backend health
+  echo "Waiting for API health at http://localhost:5001/health ..."
+  for i in {1..40}; do
+    if curl -fsS http://localhost:5001/health > /dev/null 2>&1; then
+      break
+    fi
+    sleep 1
+  done || true
+
+  # Try to open browser tabs (macOS 'open')
+  if command -v open >/dev/null 2>&1; then
+    open http://localhost:3000 || true
+    open http://localhost:5001/health || true
+  fi
+}
+
 case "$ACTION" in
   up)
     echo "Building and starting containers..."
+    print_links
     docker compose up --build
     ;;
   up-detach|up-d)
     echo "Building and starting containers in detached mode..."
     docker compose up -d --build
+    print_links
+    wait_and_open_urls
     ;;
   down)
     echo "Stopping containers..."
