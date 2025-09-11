@@ -1,4 +1,5 @@
 # Secure File Vault
+# your secure cloud storage solution
 
 ![License](https://img.shields.io/github/license/RickyTheDude/secure-file-vault)
 
