@@ -79,6 +79,48 @@ The application consists of two main components:
 
 3. Open your browser and navigate to `http://localhost:5173`
 
+### Run with Docker (recommended)
+
+1. Build and start containers:
+   ```bash
+   docker compose up --build
+   ```
+
+2. Open in your browser:
+   - Frontend: `http://localhost:3000`
+   - Backend health: `http://localhost:5001/health`
+
+3. Logs:
+   ```bash
+   docker compose logs -f           # all services
+   docker compose logs -f server    # backend only
+   docker compose logs -f client    # frontend only
+   ```
+
+4. Exec into containers (common commands):
+   ```bash
+   # Open a shell inside the backend container
+   docker compose exec server sh
+
+   # Open a shell inside the frontend (nginx) container
+   docker compose exec client sh
+
+   # Quick checks inside backend
+   docker compose exec server node -v
+   docker compose exec server ls -la /app/storage
+   docker compose exec server curl -s http://localhost:5000/health | cat
+   ```
+
+5. Stop containers:
+   ```bash
+   docker compose down
+   ```
+
+6. Reset data (deletes LevelDB and stored files):
+   ```bash
+   docker compose down -v
+   ```
+
 ## Usage
 
 1. **Registration**: Create an account and securely save your private key
