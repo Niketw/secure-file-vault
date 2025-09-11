@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 import {
   generateAesGcmKey,
   getRandomIv,
@@ -71,10 +72,61 @@ const getFileIcon = (filename = '') => {
   );
 };
 
+// Return a human-friendly label for a file based on extension or provided mime type
+const getFileLabel = (filename = '', mime = '') => {
+  const name = String(filename || '');
+  const parts = name.split('.');
+  const extension = parts.length > 1 ? parts.pop().toLowerCase() : '';
+
+  // prefer mime if provided and recognizable
+  if (mime) {
+    if (mime.startsWith('image/')) return 'Image';
+    if (mime === 'application/pdf') return 'PDF document';
+    if (mime.startsWith('audio/')) return 'Audio file';
+    if (mime.startsWith('video/')) return 'Video file';
+    if (mime === 'text/plain') return 'Text file';
+  }
+
+  const map = {
+    docx: 'Word document',
+    doc: 'Word document',
+    pdf: 'PDF document',
+    txt: 'Text file',
+    rtf: 'Rich Text Format',
+    jpg: 'Image',
+    jpeg: 'Image',
+    png: 'Image',
+    gif: 'Image',
+    bmp: 'Bitmap image',
+    mp3: 'Audio file',
+    wav: 'Audio file',
+    m4a: 'Audio file',
+    mp4: 'Video file',
+    mov: 'Video file',
+    avi: 'Video file',
+    xlsx: 'Spreadsheet',
+    xls: 'Spreadsheet',
+    csv: 'CSV spreadsheet',
+    pptx: 'Presentation',
+    ppt: 'Presentation',
+    zip: 'Archive',
+    rar: 'Archive',
+    '7z': 'Archive',
+    exe: 'Executable',
+    msi: 'Windows installer',
+    dll: 'Library (DLL)',
+    sys: 'System file',
+    ini: 'Config file',
+  };
+
+  return map[extension] || 'File';
+};
+
 function FileView({ user, privateKeyHex, setStatus }) {
   const [files, setFiles] = useState([]);
   const [fileToUpload, setFileToUpload] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
 
   useEffect(() => {
     fetchFiles();
@@ -82,7 +134,7 @@ function FileView({ user, privateKeyHex, setStatus }) {
 
   const fetchFiles = async () => {
     if (!user) return;
-    setStatus('Fetching files...');
+    toast.info('Fetching files...');
     try {
       const res = await fetch(`${API_URL}/files/${user.userId}`);
       if (!res.ok) throw new Error('Failed to fetch files');
@@ -110,16 +162,16 @@ function FileView({ user, privateKeyHex, setStatus }) {
       }));
 
       setFiles(decryptedFiles);
-      setStatus('');
+      toast.dismiss(); // Dismiss the "Fetching files..." toast
     } catch (err) {
-      setStatus(`Error: ${err.message}`);
+      toast.error(`Error: ${err.message}`);
     }
   };
 
   const handleEncryptAndUpload = async (e) => {
     e.preventDefault();
     if (!fileToUpload) return alert('Please select a file');
-    setStatus('Encrypting file and metadata...');
+    toast.info('Encrypting file and metadata...');
     try {
       const publicKey = await importRsaPublicKeyFromHexSpki(user.publicKey);
       const fileBuffer = await fileToUpload.arrayBuffer();
@@ -150,7 +202,7 @@ function FileView({ user, privateKeyHex, setStatus }) {
       console.log('Sending X-Encrypted-Key:', encryptedKeyHex);
       console.log('Sending X-Encrypted-Metadata:', encryptedMetadataHex);
 
-      setStatus('Uploading file...');
+      toast.info('Uploading file...');
       const res = await fetch(`${API_URL}/file/${user.userId}`, {
         method: 'POST',
         headers: {
@@ -165,16 +217,16 @@ function FileView({ user, privateKeyHex, setStatus }) {
         const err = await res.json();
         throw new Error(err.error || 'Upload failed');
       }
-      setStatus('File uploaded successfully.');
+      toast.success('File uploaded successfully.');
       fetchFiles();
     } catch (err) {
-      setStatus(`Error: ${err.message}`);
+      toast.error(`Error: ${err.message}`);
     }
   };
 
   const handleDownloadAndDecrypt = async (file) => {
     if (file.filename === '[Decryption Error]') return alert('Cannot download file with decryption error.');
-    setStatus(`Downloading ${file.filename}...`);
+    toast.info(`Downloading ${file.filename}...`);
     try {
       const res = await fetch(`${API_URL}/file/${file.fileId}`);
       if (!res.ok) throw new Error('Download failed');
@@ -187,7 +239,7 @@ function FileView({ user, privateKeyHex, setStatus }) {
       const fileIv = encFileBuffer.slice(0, 12);
       const ciphertext = encFileBuffer.slice(12);
 
-      setStatus(`Decrypting ${file.filename}...`);
+      toast.info(`Decrypting ${file.filename}...`);
       const decryptedFileBytes = await aesGcmDecrypt(aesKey, ciphertext, fileIv);
 
       const blob = new Blob([decryptedFileBytes], { type: file.type || 'application/octet-stream' });
@@ -195,9 +247,9 @@ function FileView({ user, privateKeyHex, setStatus }) {
       a.href = URL.createObjectURL(blob);
       a.download = file.filename;
       a.click();
-      setStatus(`${file.filename} downloaded and decrypted.`);
+      toast.success(`${file.filename} downloaded and decrypted.`);
     } catch (err) {
-      setStatus(`Error: ${err.message}`);
+      toast.error(`Error: ${err.message}`);
     }
   };
 
@@ -311,31 +363,82 @@ function FileView({ user, privateKeyHex, setStatus }) {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-lg font-semibold text-gray-900">Your Files</h3>
-          <button
-            type="button"
-            onClick={fetchFiles}
-            aria-label="Refresh files"
-            title="Refresh files"
-            className="inline-flex items-center justify-center w-9 h-9 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-gray-500/30 focus:ring-offset-2 transition-colors"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="w-5 h-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-              focusable="false"
+          <div className="flex items-center gap-2">
+            {/* View mode toggle */}
+            <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                aria-label="Grid view"
+                title="Grid view"
+                className={`inline-flex items-center justify-center w-9 h-9 ${
+                  viewMode === 'grid' 
+                    ? 'bg-slate-100 text-slate-900' 
+                    : 'bg-white text-gray-500 hover:bg-slate-50'
+                }`}
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="w-5 h-5" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                aria-label="List view"
+                title="List view"
+                className={`inline-flex items-center justify-center w-9 h-9 ${
+                  viewMode === 'list' 
+                    ? 'bg-slate-100 text-slate-900' 
+                    : 'bg-white text-gray-500 hover:bg-slate-50'
+                }`}
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="w-5 h-5" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Refresh button */}
+            <button
+              type="button"
+              onClick={fetchFiles}
+              aria-label="Refresh files"
+              title="Refresh files"
+              className="inline-flex items-center justify-center w-9 h-9 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-gray-500/30 focus:ring-offset-2 transition-colors"
             >
-              <polyline points="23 4 23 10 17 10" />
-              <polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0114.36-3.36L23 10" />
-              <path d="M20.49 15a9 9 0 01-14.36 3.36L1 14" />
-            </svg>
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-5 h-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <polyline points="23 4 23 10 17 10" />
+                <polyline points="1 20 1 14 7 14" />
+                <path d="M3.51 9a9 9 0 0114.36-3.36L23 10" />
+                <path d="M20.49 15a9 9 0 01-14.36 3.36L1 14" />
+              </svg>
+            </button>
+          </div>
         </div>
         
         {files.length === 0 ? (
@@ -345,7 +448,8 @@ function FileView({ user, privateKeyHex, setStatus }) {
             </svg>
             <p className="text-gray-500">No files found. Upload a file to get started.</p>
           </div>
-        ) : (
+        ) : viewMode === 'grid' ? (
+          // Grid View
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
             {files.map((file) => (
               <div 
@@ -361,6 +465,58 @@ function FileView({ user, privateKeyHex, setStatus }) {
                 </div>
               </div>
             ))}
+          </div>
+        ) : (
+          // List View
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {files.map((file) => (
+                  <tr 
+                    key={file.fileId}
+                    className="hover:bg-gray-50 transition-colors cursor-pointer"
+                  >
+                    <td className="px-4 py-3 whitespace-nowrap" onClick={() => handleDownloadAndDecrypt(file)}>
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 text-2xl mr-3">
+                          {getFileIcon(file.filename)}
+                        </div>
+                        <div className="truncate max-w-xs">
+                          <div className="text-sm font-medium text-gray-900 truncate">
+                            {file.filename}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                      {getFileLabel(file.filename, file.type)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadAndDecrypt(file);
+                        }}
+                        className="text-slate-700 hover:text-slate-900 mx-2"
+                        aria-label={`Download ${file.filename}`}
+                        title={`Download ${file.filename}`}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

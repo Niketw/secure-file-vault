@@ -113,7 +113,7 @@ export default function AuthPage({ user, setUser, privateKeyHex, setPrivateKeyHe
                 className={`flex-1 py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
                   mode === 'login'
                     ? 'border-primary text-primary bg-gray-50'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    : 'border-transparent text-gray-200 hover:text-gray-500'
                 }`}
               >
                 Login
@@ -124,7 +124,7 @@ export default function AuthPage({ user, setUser, privateKeyHex, setPrivateKeyHe
                 className={`flex-1 py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
                   mode === 'register'
                     ? 'border-primary text-primary bg-gray-50'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    : 'border-transparent text-gray-200 hover:text-gray-500'
                 }`}
               >
                 Register

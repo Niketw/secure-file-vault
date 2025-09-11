@@ -39,13 +39,6 @@ export default function VaultPage({ user, setUser, privateKeyHex, setPrivateKeyH
 
       {/* Main Content */}
       <main className="flex-1 p-6">
-        {/* Status Message */}
-        {status && (
-          <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-700">{status}</p>
-          </div>
-        )}
-
         {/* File View */}
         {user && (
           <div className="max-w-7xl mx-auto">

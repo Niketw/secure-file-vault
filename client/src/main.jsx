@@ -14,7 +14,7 @@ function Root() {
 
   return (
     <BrowserRouter>
-      <ToastContainer />
+      <ToastContainer className="mt-16" />
       <Routes>
         <Route
           path="/auth"
