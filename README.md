@@ -81,7 +81,13 @@ The application consists of two main components:
 
 ### Run with Docker (recommended)
 
-1. Build and start containers:
+1. Build and start containers (script):
+   ```bash
+   ./run.sh up            # builds and runs in foreground
+   ./run.sh up-detach     # builds and runs in background
+   ```
+
+   Or use Docker Compose directly:
    ```bash
    docker compose up --build
    ```
@@ -113,11 +119,15 @@ The application consists of two main components:
 
 5. Stop containers:
    ```bash
+   ./run.sh down
+   # or
    docker compose down
    ```
 
 6. Reset data (deletes LevelDB and stored files):
    ```bash
+   ./run.sh down-v
+   # or
    docker compose down -v
    ```
 
