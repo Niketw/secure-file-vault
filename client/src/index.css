@@ -98,6 +98,14 @@ body {
   color: var(--foreground);
 }
 
+/* Inter Tight font utility for GhostCloud title */
+.inter-tight-title {
+  font-family: "Inter Tight", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  font-weight: 600; /* Adjust if needed */
+}
+
 @layer base {
   :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
     h1 {
