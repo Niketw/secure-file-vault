@@ -6,7 +6,7 @@
  */
 
 // Server port configuration
-const SERVER_PORT = 5001; // Internal container port must stay 5000
+const SERVER_PORT = 5000; // Internal container port must stay 5000
 
 module.exports = {
   SERVER_PORT
