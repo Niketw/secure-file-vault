@@ -143,6 +143,11 @@ app.get('/file/:fileId', async (req, res) => {
   }
 });
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
 });
