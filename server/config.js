@@ -6,7 +6,7 @@
  */
 
 // Server port configuration
-const SERVER_PORT = 5001; // Change to 5001 for macOS if needed
+const SERVER_PORT = 5000; // Internal container port must stay 5000
 
 module.exports = {
   SERVER_PORT
