@@ -144,6 +144,29 @@ app.get('/file/:fileId', async (req, res) => {
   }
 });
 
+app.delete('/file/:userId/:fileId', async (req, res) => {
+  try {
+    const { userId, fileId } = req.params;
+    const metadata = await db.get(`filemeta:${fileId}`);
+
+    if (metadata.ownerId !== userId) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to delete this file' });
+    }
+
+    const owner = await db.get(`user:${metadata.ownerId}`);
+    const filePath = path.join(storageDir, owner.storageId, `${fileId}.enc`);
+
+    await fs.promises.unlink(filePath);
+    await db.del(`filemeta:${fileId}`);
+
+    res.json({ message: 'File deleted successfully' });
+  } catch (error) {
+    if (error.notFound) return res.status(404).json({ error: 'File not found' });
+    console.error('Delete failed:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });

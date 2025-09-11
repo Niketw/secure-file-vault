@@ -146,3 +146,23 @@ All file management endpoints require a `userId` in the URL and are authenticate
 *   **Success Response (200):** The raw binary content of the encrypted file.
 *   **Error Responses:**
     *   `404 Not Found`: If the user or file does not exist.
+
+#### 4. Delete a File
+
+*   **Endpoint:** `DELETE /file/:userId/:fileId`
+*   **Description:** Deletes a specific file and its metadata. This action is restricted to the file owner.
+*   **Example Request:**
+    ```bash
+    curl -X DELETE http://localhost:5000/file/a_unique_user_id/a_unique_file_id
+    ```
+*   **Success Response (200):**
+    ```json
+    {
+      "message": "File deleted successfully"
+    }
+    ```
+*   **Error Responses:**
+    *   `403 Forbidden`: If the user is not the owner of the file.
+    *   `404 Not Found`: If the file does not exist.
+    *   `500 Internal Server Error`: If there's a server-side failure.
+
