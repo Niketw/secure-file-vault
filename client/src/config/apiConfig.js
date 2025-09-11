@@ -7,7 +7,7 @@
 
 // Server configuration
 export const SERVER_HOST = 'localhost';
-export const SERVER_PORT = 5000; // Change to 5001 for macOS if needed
+export const SERVER_PORT = 5001; // Change to 5001 for macOS if needed
 
 // Full API URL constructed from host and port
 export const API_URL = `http://${SERVER_HOST}:${SERVER_PORT}`;
