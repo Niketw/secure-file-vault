@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
     container_name: secure-vault-server
     ports:
-      - "5000:5000"
+      - "5001:5000"
     volumes:
       - server_storage:/app/storage
       - server_db:/app/secure-vault-db
