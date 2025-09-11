@@ -4,8 +4,7 @@ import { generateRsaKeyPair } from '../utils/keyGenerator.js';
 import { toast } from 'react-toastify';
 import KeyModal from '../components/KeyModal.jsx';
 import bgAuth from '../assets/background_auth.png';
-
-const API_URL = 'http://localhost:5000';
+import { API_URL } from '../config/apiConfig.js';
 
 export default function AuthPage({ user, setUser, privateKeyHex, setPrivateKeyHex, status, setStatus }) {
   const [mode, setMode] = useState('login'); // login | register

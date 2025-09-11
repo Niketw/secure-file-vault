@@ -5,9 +5,10 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const { SERVER_PORT } = require('./config');
 
 const app = express();
-const port = 5000;
+const port = SERVER_PORT;
 
 // --- Middleware ---
 app.use(cors());
