@@ -11,8 +11,7 @@ import {
   rsaOaepEncrypt,
   rsaOaepDecrypt,
 } from './utils/crypto.js';
-
-const API_URL = 'http://localhost:5000';
+import { API_URL } from './config/apiConfig.js';
 
 // Helper to handle file type icons (richer and accessible)
 // Returns a small JSX span with an emoji (works well cross-platform) and an accessible label.
@@ -253,7 +252,6 @@ function FileView({ user, privateKeyHex, setStatus }) {
                 type="file"
                 className="hidden"
                 onChange={handleFileSelect}
-                required
               />
               
               {fileToUpload ? (
